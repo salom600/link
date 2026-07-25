@@ -384,10 +384,12 @@ jobs:
         id: package
         run: |
           set -euo pipefail
+          echo "=== Output directory contents ==="
+          ls -la out/
+
           cd out
           ISO_FILE="$(ls *.iso | head -n1)"
-          ISO_PATH="out/${ISO_FILE}"
-          ISO_SIZE_MB="$(du -m "${ISO_PATH}" | cut -f1)"
+          ISO_SIZE_MB="$(du -m "${ISO_FILE}" | cut -f1)"
           SHA256="$(sha256sum "${ISO_FILE}" | awk '{print $1}')"
 
           echo "iso_filename=${ISO_FILE}"           >> "$GITHUB_OUTPUT"
