@@ -44,17 +44,18 @@ bootmodes=(
 
 # ──────────────── Compression — ZSTD for fast squashfs ────────────────
 # Default Arch uses xz (slow, ~3-4h). We use zstd -15 -T0 for ~60% speedup.
-#   -comp zstd           : use zstd compressor
-#   -Xcompression-level 15: high ratio, still fast
-#   -b 1M                : 1MB block size (good balance)
-#   -Xbcj x86            : x86 BCJ filter (smaller code blocks)
-#   -T0                  : use all CPU cores (multi-threaded)
+# NOTE: -Xbcj x86 is ONLY valid for xz compression — zstd doesn't support
+# BCJ filters. mksquashfs will fail with 'Unrecognised compressor option -Xbcj'
+# if we try to use it with zstd.
+#   -comp zstd              : use zstd compressor
+#   -Xcompression-level 15  : high ratio, still fast (1..22, default 15)
+#   -b 1M                   : 1MB block size (good balance)
+#   -T0                    : use all CPU cores (multi-threaded)
 airootfs_image_type="squashfs"
 airootfs_image_tool_options=(
     '-comp' 'zstd'
     '-Xcompression-level' '15'
     '-b' '1M'
-    '-Xbcj' 'x86'
     '-T0'
 )
 
