@@ -33,11 +33,13 @@ install_dir="arch"
 buildmodes=('iso')
 
 # Boot modes (BIOS + UEFI dual boot)
+# NOTE: Modern archiso (v60+) uses simplified names:
+#   - 'bios.syslinux'        (was: bios.syslinux.mbr + bios.syslinux.eltorito)
+#   - 'uefi.systemd-boot'    (was: uefi-x64.systemd-boot.esp + uefi-x64.systemd-boot.eltorito)
+# The old names are deprecated and emit warnings.
 bootmodes=(
-    "bios.syslinux.mbr"
-    "bios.syslinux.eltorito"
-    "uefi-x64.systemd-boot.esp"
-    "uefi-x64.systemd-boot.eltorito"
+    "bios.syslinux"
+    "uefi.systemd-boot"
 )
 
 # ──────────────── Compression — ZSTD for fast squashfs ────────────────
