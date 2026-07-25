@@ -5,16 +5,24 @@
 #   - Base Arch system + utilities
 #   - Custom XFCE desktop (no GNOME bloat)
 #   - Polybar + Rofi (replaces xfce4-panel)
-#   - Calamares graphical installer
+#   - Calamares graphical installer (installed from AUR in CI workflow)
 #   - Gaming stack (Wine/Proton/Lutris/Steam + GPU drivers)
 #   - Brave browser + Flatpak + AppImage support
-#   - Fluent Dark theming
+#   - Fluent Dark theming (from chaotic-aur)
+#
+# All packages in this file MUST exist in:
+#   - [core] [extra] [multilib]  (official Arch repos)
+#   - [chaotic-aur]              (pre-built AUR, no compilation needed)
+#
+# AUR-only packages (calamares, etc.) are installed separately by the
+# .github/workflows/build.yml workflow using an AUR helper.
 # ============================================================================
 
 ## ───────────────────────── Base System ─────────────────────────
 acl
 arch-install-scripts
 base
+base-devel
 btrfs-progs
 coreutils
 cryptsetup
@@ -66,7 +74,6 @@ pciutils
 perl
 procps-ng
 pv
-reiserfsprogs
 s-nail
 sed
 shadow
@@ -77,7 +84,6 @@ systemd
 systemd-sysvcompat
 tar
 texinfo
-thunderbolt-software-user-space
 tk
 traceroute
 util-linux
@@ -89,11 +95,7 @@ zsh
 
 ## ──────────────────────── Kernel/Firmware extras ────────────────
 linux-headers
-linux-firmware-bnx2x
-linux-firmware-liquidio
-linux-firmware-mellanox
-linux-firmware-nfp
-linux-firmware-platform
+linux-firmware-broadcom    # was: linux-firmware-bnx2x (renamed in 2024)
 sof-firmware
 
 ## ──────────────────────── Network / Wireless ───────────────────
@@ -111,7 +113,6 @@ dnsmasq
 openvpn
 wireguard-tools
 networkmanager-openvpn
-networkmanager-strongswan
 networkmanager-pptp
 
 ## ──────────────────────── Audio / Bluetooth ────────────────────
@@ -184,7 +185,6 @@ xf86-video-ati
 xf86-video-intel
 xf86-video-nouveau
 xf86-video-vesa
-libva-mesa-driver
 
 ## ──────────────────────── Display Manager ──────────────────────
 lightdm
@@ -243,23 +243,18 @@ jq
 python-psutil
 python-i3ipc
 xdo
-xprop
 
 ## ──────────────────────── Themes & Icons ───────────────────────
-fluent-gtk-theme
-fluent-icon-theme
+# Fluent GTK + icons come from chaotic-aur (pre-built AUR)
+fluent-gtk-theme            # chaotic-aur
+fluent-icon-theme           # chaotic-aur
 papirus-icon-theme
-papirus-maia-icon-theme
-arc-gtk-theme
-arc-icon-theme
 materia-gtk-theme
 kvantum
-kvantum-vertex
-lxappearance
-lxappearance-gtk3
+kvantum-qt5                 # was: kvantum-vertex (AUR only)
+lxappearance                # was: lxappearance-gtk3 (renamed)
 qt5ct
 qt6ct
-xcursor-premium
 
 ## ──────────────────────── Fonts ────────────────────────────────
 ttf-dejavu
@@ -273,17 +268,15 @@ ttf-fira-mono
 ttf-cascadia-code
 ttf-jetbrains-mono
 ttf-hack
-ttf-meslo
 noto-fonts
 noto-fonts-cjk
 noto-fonts-emoji
-noto-fonts-compat
 woff2
 freetype2
 fontconfig
 
 ## ──────────────────────── Apps: Web / Mail ─────────────────────
-brave-bin
+brave-bin                   # chaotic-aur
 firefox
 thunderbird
 
@@ -301,7 +294,6 @@ gvfs-smb
 gvfs-afc
 gvfs-gphoto2
 gvfs-nfs
-gvfs-google
 gvfs-goa
 udisks2
 ntfs-3g
@@ -325,8 +317,8 @@ kdenlive
 handbrake
 simplescreenrecorder
 flameshot
-peazip
-foliate
+peazip                      # chaotic-aur
+foliate                     # chaotic-aur
 calibre
 
 ## ──────────────────────── Apps: Office / Text ──────────────────
@@ -336,24 +328,21 @@ libreoffice-fresh-de
 hunspell
 hunspell-en_us
 hunspell-en_gb
-haskell-pandoc
 evince
 okular
 
 ## ──────────────────────── Apps: System / Tools ─────────────────
 gnome-system-monitor
 gnome-disk-utility
-baobab
 gparted
 gsmartcontrol
 htop
 btop
-neofetch
 fastfetch
 inxi
 glances
 bat
-exa
+eza
 fd
 ripgrep
 tree
@@ -364,11 +353,7 @@ git
 github-cli
 git-lfs
 subversion
-openssh
 rsync
-unrar
-unar
-p7zip
 sshfs
 nmap
 socat
@@ -382,21 +367,18 @@ virtualbox-guest-utils
 flatpak
 xdg-desktop-portal
 xdg-desktop-portal-gtk
-xdg-desktop-portal-xfce
 xdg-user-dirs
 appstream
 appstream-qt
 appstream-glib
-bauh
-flatseal
-gnome-software
+flatseal                    # chaotic-aur
+bauh                        # chaotic-aur
 
 ## ──────────────────────── Gaming Stack ─────────────────────────
 wine
 wine-gecko
 wine-mono
 winetricks
-proton-ge-custom
 steam
 lib32-pipewire
 lib32-alsa-plugins
@@ -417,21 +399,13 @@ lib32-gamemode
 gamescope
 mangohud
 lib32-mangohud
-replay-sorcery
 goverlay
-protonup-qt
-protontricks
-lutris
-heroic-games-launcher-bin
-wine-staging
-wineasio
-
-## ──────────────────────── Calamares Installer ──────────────────
-calamares
-calamares-core
-calamares-default-settings
-ckbcomp
-gptfdisk
+protonup-qt                 # chaotic-aur
+protontricks                # chaotic-aur
+lutris                      # chaotic-aur
+heroic-games-launcher-bin   # chaotic-aur
+wine-staging                # chaotic-aur
+wineasio                    # chaotic-aur
 
 ## ──────────────────────── Live Environment Utilities ───────────
 archinstall
@@ -439,9 +413,6 @@ reflector
 hdparm
 smartmontools
 dmidecode
-inxi
-lsb-release
-lsblk
 lshw
 hwinfo
 acpi
@@ -458,36 +429,23 @@ zsh-autosuggestions
 zsh-syntax-highlighting
 starship
 fish
-bat
-eza
-zoxide
 fzf
-ripgrep
-fd
-tmux
 neovim
 micro
-nano
-vim
 
 ## ──────────────────────── Security / Privacy ───────────────────
 ufw
 gufw
-ufw-extras
-openssh
-openssh-askpass
 seahorse
 gnome-keyring
 libsecret
 keepassxc
-veracrypt
+veracrypt                   # chaotic-aur
 wireguard-tools
 openvpn
 networkmanager-openvpn
 firejail
 apparmor
-apparmor-utils
-firecfg
 
 ## ──────────────────────── Misc / Niceties ──────────────────────
 xdg-utils
@@ -496,16 +454,32 @@ xdg-user-dirs-gtk
 desktop-file-utils
 hicolor-icon-theme
 sound-theme-freedesktop
-gnome-keyring
 polkit-gnome
 gvfs
 gvfs-mtp
 udisks2
 upower
 accountsservice
-fontforge
-ttf-ms-fonts
-ttf-vista-fonts
-ttf-windows
-gufw
-synaptic
+ttf-ms-fonts                # chaotic-aur
+
+## ──────────────────────── AUR-only (built + staged by CI workflow) ─────────
+# These packages are NOT in pacman repos but are built from AUR by the
+# .github/workflows/build.yml workflow (using paru), then staged in a local
+# file:// repo at /repo/x86_64 so mkarchiso's pacstrap can install them.
+calamares
+calamares-core
+calamares-default-settings
+proton-ge-custom
+replay-sorcery
+ttf-meslo-nerd-font
+
+## ──────────────────────── Calamares dependencies ─────────────────
+ckbcomp
+gptfdisk
+qt5-tools
+qt6-tools
+extra-cmake-modules
+kpmcore
+boost
+yaml-cpp
+polkit-qt5
