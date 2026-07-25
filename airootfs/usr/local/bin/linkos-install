@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# ============================================================================
+# LinkOS — linkos-install
+# A simple wrapper that launches Calamares with elevated privileges.
+# Placed in /usr/local/bin so users can run `sudo linkos-install` from a TTY.
+# ============================================================================
+
+set -euo pipefail
+
+if [[ "$EUID" -ne 0 ]]; then
+    exec pkexec /usr/bin/calamares "$@"
+else
+    exec /usr/bin/calamares "$@"
+fi

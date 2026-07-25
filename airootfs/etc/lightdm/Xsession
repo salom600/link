@@ -1,0 +1,30 @@
+#!/bin/sh
+# ============================================================================
+# LinkOS — /etc/lightdm/Xsession
+# Wrapper that sources .xprofile before launching the user session.
+# ============================================================================
+
+set -e
+
+# Read /etc/profile if not already done
+if [ -f /etc/profile ]; then
+    . /etc/profile
+fi
+
+# Read user's .profile
+if [ -f "$HOME/.profile" ]; then
+    . "$HOME/.profile"
+fi
+
+# Read user's .xprofile
+if [ -f "$HOME/.xprofile" ]; then
+    . "$HOME/.xprofile"
+fi
+
+# Set XDG environment
+export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-XFCE}"
+export XDG_SESSION_DESKTOP="${XDG_SESSION_DESKTOP:-xfce}"
+export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-x11}"
+
+# Execute the requested session
+exec "$@"

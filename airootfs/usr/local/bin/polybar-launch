@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# ============================================================================
+# LinkOS — polybar-launch
+# Launches polybar with the linkos config, killing any prior instance first.
+# ============================================================================
+
+set -euo pipefail
+
+# Terminate already running bar instances
+killall -q polybar 2>/dev/null || true
+
+# Wait until the processes have been shut down
+while pgrep -u "$(id -un)" -x polybar >/dev/null; do
+    sleep 0.5
+done
+
+# Find available bars from the config
+BARS=($(awk '/^\[bar/ {gsub(/\[bar\//, "", $0); gsub(/\]/, "", $0); print $0}' \
+    "${XDG_CONFIG_HOME:-$HOME/.config}/polybar/config.ini" 2>/dev/null || echo "linkos"))
+
+# Launch each bar
+for bar in "${BARS[@]}"; do
+    echo "Launching polybar: ${bar}"
+    polybar "${bar}" 2>&1 | tee -a "/tmp/polybar-${bar}.log" &
+done
+
+echo "Polybar launched."

@@ -1,0 +1,30 @@
+# Build artifacts
+work/
+out/
+*.iso
+*.sfs
+*.squashfs
+
+# Local pacman cache
+pacman-cache/
+var-cache-pacman/
+
+# Editor
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+polybar-*.log
+
+# Local environment overrides
+.env
+.env.local
+*.local

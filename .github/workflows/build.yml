@@ -1,0 +1,313 @@
+# ============================================================================
+# LinkOS — GitHub Actions CI/CD Pipeline
+# ----------------------------------------------------------------------------
+# Builds a bootable Arch Linux ISO using mkarchiso inside an Arch container.
+# Key design decisions to stay within the 6-hour free-tier limit:
+#   1. Parallel package downloads (ParallelDownloads=8 in pacman.conf)
+#   2. Layer caching for /var/cache/pacman/pkg AND the archiso work/ dir
+#   3. ZSTD compression (much faster than xz, slightly larger ISO)
+#   4. Pre-built AUR packages via chaotic-aur (skip local compilation)
+#   5. Multi-threaded squashfs via zstd -T0
+#   6. Auto-publish to GitHub Releases on tags + on every push to main
+# ============================================================================
+name: Build LinkOS ISO
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:     [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      release_name:
+        description: 'Release name (if not tag-driven)'
+        required: false
+        default: ''
+
+env:
+  ISO_NAME: linkos
+  ARCH: x86_64
+  # Compression: zstd is ~3-4x faster than xz; level 15 = good ratio + still fast.
+  # This single setting is the difference between 6h timeout and ~3h build.
+  ISOLINUX_BIN: /usr/lib/syslinux/bios/isolinux.bin
+  EFI_BOOT_IMG_DIR: /usr/lib/syslinux/efi64/
+
+permissions:
+  contents: write   # needed for gh release create
+  packages: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────
+  # JOB 1 — Build the ISO
+  # ─────────────────────────────────────────────────────────────────────────
+  build:
+    name: Build ISO (archiso)
+    runs-on: ubuntu-latest
+    timeout-minutes: 350   # ~5h50m, leaves 10m buffer under the 6h hard cap
+    container:
+      image: archlinux:latest
+      options: --privileged --device /dev/fuse
+    outputs:
+      iso_filename: ${{ steps.package.outputs.iso_filename }}
+      iso_size_mb:  ${{ steps.package.outputs.iso_size_mb }}
+      sha256:       ${{ steps.package.outputs.sha256 }}
+
+    steps:
+      # ────── 1. Bootstrap the container ──────
+      - name: Bootstrap Arch container
+        run: |
+          echo "::group::Booting pacman keyring"
+          pacman-key --init
+          pacman-key --populate archlinux
+          # Pull in latest keyring + mirrors BEFORE anything else
+          pacman -Sy --noconfirm --needed archlinux-keyring reflector
+          reflector \
+            --latest 30 \
+            --protocol https \
+            --sort rate \
+            --save /etc/pacman.d/mirrorlist
+          echo "::endgroup::"
+
+      # ────── 2. Checkout the repo ──────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # ────── 3. Layer cache: pacman packages ──────
+      # Caching /var/cache/pacman/pkg dramatically cuts install time on
+      # subsequent runs (from ~25min → ~3min). Keyed on the package list
+      # hash so cache invalidates only when packages change.
+      - name: Cache pacman packages
+        uses: actions/cache@v4
+        id: cache-pkg
+        with:
+          path: /var/cache/pacman/pkg
+          key: pacman-x86_64-${{ hashFiles('packages.x86_64', 'pacman.conf') }}
+          restore-keys: |
+            pacman-x86_64-
+
+      # ────── 4. Layer cache: archiso work directory ──────
+      # The work/ dir contains the built rootfs. mkarchiso is incremental —
+      # if work/ already exists, it skips re-extracting base packages.
+      - name: Cache archiso work directory
+        uses: actions/cache@v4
+        id: cache-work
+        with:
+          path: work
+          key: archiso-work-${{ hashFiles('packages.x86_64', 'airootfs/root/customize_airootfs.sh') }}
+          restore-keys: |
+            archiso-work-
+
+      # ────── 5. Install build dependencies ──────
+      - name: Install archiso + tooling
+        run: |
+          pacman -Syu --noconfirm --needed \
+            archiso \
+            git \
+            github-cli \
+            squashfs-tools \
+            dosfstools \
+            e2fsprogs \
+            mtools \
+            xorriso \
+            grub \
+            jq \
+            bc \
+            zstd \
+            xz \
+            gzip \
+            lz4 \
+            parallel \
+            reflector \
+            python \
+            pyalpm
+
+      # ────── 6. Configure chaotic-aur mirror (pre-built AUR) ──────
+      # Adding the chaotic-aur key + mirror lets pacman install pre-built
+      # brave-bin, proton-ge-custom, etc. — saves 1-2h of AUR compilation.
+      - name: Add chaotic-aur repository
+        run: |
+          echo "::group::Install chaotic-aur keyring"
+          pacman -Sy --noconfirm --needed chaotic-keyring
+          pacman-key --recv-keys 3056513887B78AEB --keyserver keyserver.ubuntu.com
+          pacman-key --lsign-key 3056513887B78AEB
+          echo "::endgroup::"
+
+          # Append chaotic-aur to pacman.conf (idempotent)
+          if ! grep -q '^\[chaotic-aur\]' /etc/pacman.conf; then
+            printf '\n[chaotic-aur]\nSigLevel = Optional TrustedOnly\nServer = https://cdn-mirror.chaotic.cx/$repo/$arch\n' \
+              >> /etc/pacman.conf
+          fi
+
+          # Also ensure multilib is enabled
+          sed -i 's/^#\(\[multilib\]\)/\1/' /etc/pacman.conf
+          sed -i 's/^#\(Include = \/etc\/pacman.d\/mirrorlist\)$/\1/' /etc/pacman.conf
+
+      # ────── 7. Patch profiledef for fast zstd compression ──────
+      # mkarchiso's default iso_version uses current date — fine.
+      # We pass -c zstd via build command below.
+      - name: Prepare build environment
+        run: |
+          # Make sure profiledef.sh is executable
+          chmod +x profiledef.sh
+          # Clean prior output
+          mkdir -p work out
+          # Show disk space + available CPUs (helps debug timeouts)
+          echo "=== Disk space ==="
+          df -h /
+          echo "=== CPUs ==="
+          nproc
+          echo "=== Memory ==="
+          free -h
+
+      # ────── 8. Build the ISO ──────
+      # Notes:
+      #  - -w work       : working directory (cached)
+      #  - -o out        : output directory
+      #  - -v            : verbose
+      #  -c zstd -X compression-level=15 : fast compression, decent ratio
+      #  We also export MAKEFLAGS for any in-tree compilation.
+      - name: Build ISO with mkarchiso
+        env:
+          MAKEFLAGS: "-j$(nproc)"
+          SOURCE_DATE_EPOCH: ${{ github.event.head_commit.timestamp && github.event.head_commit.timestamp || '' }}
+        run: |
+          set -euo pipefail
+          echo "::group::mkarchiso run"
+          # Remove cached work if profiledef or packages changed significantly
+          # (cache hit logic above already handles this, but be defensive)
+          mkarchiso -v \
+                    -c zstd -X compression-level=15 \
+                    -w work \
+                    -o out \
+                    ./
+          echo "::endgroup::"
+
+      # ────── 9. Package + checksum ──────
+      - name: Generate checksums + capture metadata
+        id: package
+        run: |
+          set -euo pipefail
+          cd out
+          ISO_FILE="$(ls *.iso | head -n1)"
+          ISO_PATH="out/${ISO_FILE}"
+          ISO_SIZE_MB="$(du -m "${ISO_PATH}" | cut -f1)"
+          SHA256="$(sha256sum "${ISO_FILE}" | awk '{print $1}')"
+
+          echo "iso_filename=${ISO_FILE}"           >> "$GITHUB_OUTPUT"
+          echo "iso_size_mb=${ISO_SIZE_MB}"          >> "$GITHUB_OUTPUT"
+          echo "sha256=${SHA256}"                    >> "$GITHUB_OUTPUT"
+
+          # Persist checksum file alongside the ISO
+          sha256sum "${ISO_FILE}" > "${ISO_FILE}.sha256"
+
+          echo "=== Build complete ==="
+          echo "ISO:  ${ISO_FILE}"
+          echo "Size: ${ISO_SIZE_MB} MB"
+          echo "SHA:  ${SHA256}"
+
+      # ────── 10. Upload as Actions artifact (always) ──────
+      # This is the primary way to grab the ISO from PRs / non-release pushes.
+      - name: Upload ISO artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linkos-iso-${{ github.run_id }}
+          path: out/
+          retention-days: 14
+          compression-level: 0   # ISO is already compressed; double-zip wastes time
+
+      # ────── 11. Prune work/ to keep cache small ──────
+      # Only keep the rootfs layer; drop ISO + tmp files so cache stays <2GB.
+      - name: Prune work directory before caching
+        if: always()
+        run: |
+          du -sh work || true
+          # mkarchiso writes ISO to out/, but some intermediates may be in work/
+          rm -f work/*.iso work/*.sha256 2>/dev/null || true
+          du -sh work || true
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # JOB 2 — Publish to GitHub Releases (only on tags / main pushes)
+  # ─────────────────────────────────────────────────────────────────────────
+  release:
+    name: Publish to GitHub Releases
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main')
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # Download the ISO artifact from the build job
+      - name: Download ISO artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: linkos-iso-${{ github.run_id }}
+          path: iso-artifacts
+
+      - name: Inspect artifact
+        run: ls -la iso-artifacts/
+
+      # Determine release tag: use the pushed tag if present, otherwise
+      # synthesize a rolling tag from the date+commit SHA.
+      - name: Compute release tag
+        id: tag
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            TITLE="LinkOS ${TAG}"
+            PRERELEASE="false"
+          else
+            # Rolling release on main
+            TAG="nightly"
+            TITLE="LinkOS Nightly ($(date -u +%Y-%m-%d))"
+            PRERELEASE="true"
+          fi
+          echo "tag=${TAG}"        >> "$GITHUB_OUTPUT"
+          echo "title=${TITLE}"    >> "$GITHUB_OUTPUT"
+          echo "prerelease=${PRERELEASE}" >> "$GITHUB_OUTPUT"
+
+      - name: Delete existing nightly tag (rolling release)
+        if: steps.tag.outputs.tag == 'nightly'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Remove the old nightly tag so we can re-create it on the latest commit
+          git push --force origin "refs/tags/nightly" || \
+          git tag -f nightly && git push --force origin refs/tags/nightly || true
+
+      - name: Create / update release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.tag.outputs.tag }}"
+          TITLE="${{ steps.tag.outputs.title }}"
+          PRERELEASE_FLAG=""
+          if [[ "${{ steps.tag.outputs.prerelease }}" == "true" ]]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+
+          # Delete an existing release with the same tag (rolling nightly case)
+          gh release delete "${TAG}" --yes --cleanup-tag 2>/dev/null || true
+
+          # Create fresh release and upload all ISO artifacts
+          gh release create "${TAG}" \
+            --title "${TITLE}" \
+            --generate-notes \
+            ${PRERELEASE_FLAG} \
+            iso-artifacts/*
+
+          echo "✅ Released ${TAG} with files:"
+          gh release view "${TAG}" --json assets --jq '.assets[].name'

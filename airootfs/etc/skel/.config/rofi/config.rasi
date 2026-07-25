@@ -1,0 +1,259 @@
+// ============================================================================
+// LinkOS — Rofi configuration
+// Windows 11-style app launcher with Fluent Dark appearance.
+// ============================================================================
+
+configuration {
+    // Modality & mode
+    modi: "drun,run,window,ssh,calc,emoji";
+
+    // Display
+    show-icons: true;
+    icon-theme: "Fluent-Dark";
+    font: "Cascadia Code 11";
+    line-padding: 8;
+    lines: 10;
+    columns: 2;
+
+    // Window behavior
+    fuzzy: true;
+    filter: "";
+    sidebar-mode: false;
+    eh: 1;
+    auto-select: false;
+    parse-hosts: false;
+    parse-known-hosts: false;
+
+    // Geometry
+    width: 600;
+    padding: 12;
+    yoffset: 0;
+    xoffset: 0;
+    fixed-num-lines: true;
+
+    // Search
+    disable-history: false;
+    sort: true;
+    case-sensitive: false;
+    cycle: true;
+
+    // Keys
+    kb-primary-paste: "Control+V,Shift+Insert";
+    kb-secondary-paste: "Control+v,Insert";
+    kb-clear-line: "Control+w";
+    kb-move-front: "Control+a";
+    kb-move-end: "Control+e";
+    kb-move-word-back: "Alt+b";
+    kb-move-word-forward: "Alt+f";
+    kb-move-char-back: "Left,Control+b";
+    kb-move-char-forward: "Right,Control+f";
+    kb-remove-word-back: "Control+Alt+h";
+    kb-remove-word-forward: "Control+Alt+d";
+    kb-remove-char-forward: "Delete,Control+d";
+    kb-remove-char-back: "BackSpace,Control+h";
+    kb-remove-to-eol: "Control+k";
+    kb-remove-to-sol: "Control+u";
+    kb-accept-entry: "Return,KP_Enter";
+    kb-accept-custom: "Control+Return";
+    kb-accept-alt: "Shift+Return";
+    kb-delete-entry: "Shift+Delete";
+    kb-mode-next: "Shift+Right,Control+Tab";
+    kb-mode-previous: "Shift+Left,Control+Shift+Tab";
+    kb-row-left: "Control+Page_Up";
+    kb-row-right: "Control+Page_Down";
+    kb-row-up: "Up,Control+p,Shift+Tab";
+    kb-row-down: "Down,Control+n,Tab";
+    kb-row-tab: "Tab";
+    kb-page-prev: "Page_Up";
+    kb-page-next: "Page_Down";
+    kb-row-first: "Home,KP_Home";
+    kb-row-last: "End,KP_End";
+    kb-row-select: "Control+space";
+    kb-screenshot: "Alt+S";
+    kb-ellipsize: "Alt+period";
+    kb-toggle-case-sensitivity: "grave,dead_grave";
+    kb-toggle-sort: "Alt+grave";
+    kb-cancel: "Escape,Control+g,Control+bracketleft";
+    kb-custom-1: "Alt+1";
+    kb-custom-2: "Alt+2";
+    kb-custom-3: "Alt+3";
+    kb-custom-4: "Alt+4";
+    kb-custom-5: "Alt+5";
+    kb-custom-6: "Alt+6";
+    kb-custom-7: "Alt+7";
+    kb-custom-8: "Alt+8";
+    kb-custom-9: "Alt+9";
+    kb-custom-10: "Alt+0";
+    kb-custom-11: "Alt+exclam";
+    kb-custom-12: "Alt+at";
+    kb-custom-13: "Alt+numbersign";
+    kb-custom-14: "Alt+dollar";
+    kb-custom-15: "Alt+percent";
+    kb-custom-16: "Alt+dead_circumflex";
+    kb-custom-17: "Alt+ampersand";
+    kb-custom-18: "Alt+asterisk";
+    kb-custom-19: "Alt+parenleft";
+}
+
+@theme "/dev/null"
+
+* {
+    background:                  #1f1f1fff;
+    background-alt:              #2a2a2aff;
+    foreground:                  #e6e6e6ff;
+    foreground-alt:              #888888ff;
+    selected:                    #4cc2ffff;
+    selected-foreground:         #1f1f1fff;
+    border:                      #4cc2ff30;
+    urgent:                      #e74c3cff;
+    urgent-foreground:           #1f1f1fff;
+    accent:                      #60cdffff;
+
+    bg-transparent:              #1f1f1fdd;
+    text-color:                  @foreground;
+    dark-text-color:             @selected-foreground;
+    accent-color:                @selected;
+}
+
+window {
+    transparency:                "real";
+    background-color:            @bg-transparent;
+    text-color:                  @text-color;
+    border:                      1px;
+    border-color:                @border;
+    border-radius:               8px;
+    padding:                     8px;
+    width:                       600px;
+    location:                    center;
+    anchor:                      center;
+}
+
+mainbox {
+    background-color:            transparent;
+    border:                      0px;
+    border-radius:               0px;
+    padding:                     8px;
+    spacing:                     12px;
+    children:                    [ "inputbar", "message", "listview", "mode-switcher" ];
+}
+
+inputbar {
+    background-color:            @background-alt;
+    text-color:                  @text-color;
+    border:                      0px;
+    border-radius:               6px;
+    padding:                     10px;
+    spacing:                     8px;
+    children:                    [ "prompt", "textbox-prompt-colon", "entry" ];
+}
+
+prompt {
+    text-color:                  @accent;
+    background-color:            transparent;
+}
+
+textbox-prompt-colon {
+    expand:                      false;
+    str:                         ":";
+    text-color:                  @foreground-alt;
+    background-color:            transparent;
+}
+
+entry {
+    text-color:                  @text-color;
+    background-color:            transparent;
+    placeholder:                 "Search apps...";
+    placeholder-color:           @foreground-alt;
+}
+
+message {
+    background-color:            transparent;
+    border:                      0px;
+    border-radius:               0px;
+    padding:                     4px 8px;
+}
+
+textbox {
+    text-color:                  @foreground-alt;
+    background-color:            transparent;
+}
+
+listview {
+    background-color:            transparent;
+    border:                      0px;
+    border-radius:               0px;
+    padding:                     4px;
+    spacing:                     4px;
+    dynamic:                     false;
+    scrollbar:                   false;
+    layout:                      vertical;
+}
+
+element {
+    background-color:            transparent;
+    text-color:                  @text-color;
+    border:                      0px;
+    border-radius:               4px;
+    padding:                     8px;
+    orientation:                 horizontal;
+    spacing:                     8px;
+    cursor:                      pointer;
+}
+
+element normal.normal {
+    background-color:            transparent;
+    text-color:                  @text-color;
+}
+
+element selected.normal {
+    background-color:            @selected;
+    text-color:                  @dark-text-color;
+}
+
+element alternate.normal {
+    background-color:            @background-alt;
+    text-color:                  @text-color;
+}
+
+element-icon {
+    background-color:            transparent;
+    size:                        24px;
+    margin:                      0px 4px 0px 0px;
+}
+
+element-text {
+    background-color:            transparent;
+    vertical-align:              0.5;
+    horizontal-align:            0.0;
+}
+
+mode-switcher {
+    background-color:            transparent;
+    border:                      0px;
+    border-radius:               0px;
+    spacing:                     0px;
+    expand:                      false;
+    orientation:                 horizontal;
+}
+
+button {
+    background-color:            @background-alt;
+    text-color:                  @foreground-alt;
+    border:                      0px;
+    border-radius:               4px;
+    padding:                     6px 12px;
+    cursor:                      pointer;
+}
+
+button selected {
+    background-color:            @selected;
+    text-color:                  @dark-text-color;
+}
+
+scrollbar {
+    background-color:            transparent;
+    handle-color:                @foreground-alt;
+    handle-width:                4px;
+    border:                      0px;
+    border-radius:               2px;
+}

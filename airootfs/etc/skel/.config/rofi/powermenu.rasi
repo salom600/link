@@ -1,0 +1,96 @@
+// ============================================================================
+// LinkOS — Rofi power menu
+// Centered power-off / reboot / logout / suspend / hibernate dialog.
+// Usage:  rofi -show powermenu -theme linkos-powermenu
+// ============================================================================
+
+configuration {
+    modi: "powermenu:rofi-power-menu";
+}
+
+@theme "/dev/null"
+
+* {
+    background:                  #1f1f1fee;
+    background-alt:              #2a2a2aff;
+    foreground:                  #e6e6e6ff;
+    selected:                    #4cc2ffff;
+    selected-foreground:         #1f1f1fff;
+    border:                      #4cc2ff30;
+    accent:                      #60cdffff;
+}
+
+window {
+    transparency:                "real";
+    background-color:            @background;
+    text-color:                  @foreground;
+    border:                      1px;
+    border-color:                @border;
+    border-radius:               12px;
+    padding:                     16px;
+    width:                       360px;
+    location:                    center;
+    anchor:                      center;
+}
+
+mainbox {
+    background-color:            transparent;
+    spacing:                     12px;
+    children:                    [ "title", "listview" ];
+}
+
+title {
+    text-color:                  @foreground;
+    background-color:            transparent;
+    padding:                     0px 4px 8px 4px;
+}
+
+textbox-title {
+    text-color:                  @accent;
+    font:                        "Cascadia Code Bold 14";
+    background-color:            transparent;
+    horizontal-align:            0.5;
+    str:                         "Power Menu";
+}
+
+listview {
+    background-color:            transparent;
+    border:                      0px;
+    spacing:                     4px;
+    columns:                     1;
+    lines:                       6;
+    dynamic:                     false;
+    scrollbar:                   false;
+}
+
+element {
+    background-color:            @background-alt;
+    text-color:                  @foreground;
+    border:                      0px;
+    border-radius:               8px;
+    padding:                     12px;
+    orientation:                 horizontal;
+    spacing:                     12px;
+    cursor:                      pointer;
+}
+
+element normal.normal {
+    background-color:            @background-alt;
+    text-color:                  @foreground;
+}
+
+element selected.normal {
+    background-color:            @selected;
+    text-color:                  @selected-foreground;
+}
+
+element-icon {
+    background-color:            transparent;
+    size:                        28px;
+}
+
+element-text {
+    background-color:            transparent;
+    vertical-align:              0.5;
+    font:                        "Cascadia Code 12";
+}

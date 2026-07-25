@@ -1,0 +1,109 @@
+#!/bin/sh
+# ============================================================================
+# LinkOS — ~/.xprofile
+# Runs at X session start (after login, before window manager).
+# ============================================================================
+
+# ─────────────────────── Environment ───────────────────────
+export XDG_CURRENT_DESKTOP="XFCE"
+export XDG_SESSION_DESKTOP="xfce"
+export XDG_SESSION_TYPE="x11"
+export DESKTOP_SESSION="xfce"
+export GTK_THEME="Fluent-Dark"
+export QT_QPA_PLATFORMTHEME="qt5ct"
+export QT_STYLE_OVERRIDE="kvantum"
+export SAL_USE_VCLPLUGIN="gtk3"
+export _JAVA_AWT_WM_NONREPARENTING=1
+export MOZ_ENABLE_WAYLAND=0
+export MOZ_USE_XINPUT2=1
+export SDL_VIDEODRIVER=x11
+export EDITOR=nano
+export VISUAL=nano
+export TERMINAL=xfce4-terminal
+export BROWSER=brave
+export PAGER=less
+export LANG=en_US.UTF-8
+export LC_TIME=en_GB.UTF-8
+
+# ─────────────────────── X resources ───────────────────────
+[[ -f ~/.Xresources ]] && xrdb -merge ~/.Xresources
+
+# ─────────────────────── Cursor ───────────────────────
+xsetroot -cursor_name left_ptr 2>/dev/null
+
+# ─────────────────────── Keyboard ───────────────────────
+# Repeat rate: 250ms delay, 35 cps
+xset r rate 250 35 2>/dev/null
+# Disable bell
+xset b off 2>/dev/null
+# Disable screensaver (xscreensaver handles it via XFCE)
+xset s off 2>/dev/null
+xset -dpms 2>/dev/null
+
+# ─────────────────────── Compositor (picom — blur + transparency) ───────────────
+# Windows 11-style rounded corners + blur effects
+if command -v picom >/dev/null 2>&1; then
+    picom --config ~/.config/picom/picom.conf &
+fi
+
+# ─────────────────────── Wallpaper ───────────────────────
+if command -v feh >/dev/null 2>&1 && [[ -f /usr/share/backgrounds/linkos/linkos-wallpaper.jpg ]]; then
+    feh --bg-scale /usr/share/backgrounds/linkos/linkos-wallpaper.jpg 2>/dev/null &
+fi
+
+# ─────────────────────── Polybar ───────────────────────
+if command -v polybar >/dev/null 2>&1; then
+    ~/.config/polybar/launch.sh 2>/dev/null &
+fi
+
+# ─────────────────────── Notification daemon ───────────────────────
+if command -v dunst >/dev/null 2>&1; then
+    dunst -config ~/.config/dunst/dunstrc 2>/dev/null &
+fi
+
+# ─────────────────────── Network Manager applet ───────────────────────
+if command -v nm-applet >/dev/null 2>&1; then
+    nm-applet --sm-disable --no-warning 2>/dev/null &
+fi
+
+# ─────────────────────── Bluetooth applet ───────────────────────
+if command -v blueman-applet >/dev/null 2>&1; then
+    blueman-applet 2>/dev/null &
+fi
+
+# ─────────────────────── Volume icon ───────────────────────
+if command -v volumeicon >/dev/null 2>&1; then
+    volumeicon 2>/dev/null &
+fi
+
+# ─────────────────────── Power manager ───────────────────────
+if command -v xfce4-power-manager >/dev/null 2>&1; then
+    xfce4-power-manager 2>/dev/null &
+fi
+
+# ─────────────────────── Polkit (for elevation prompts) ───────────────────────
+if command -v /usr/lib/xfce-polkit/xfce-polkit >/dev/null 2>&1; then
+    /usr/lib/xfce-polkit/xfce-polkit 2>/dev/null &
+elif command -v polkit-gnome-authentication-agent-1 >/dev/null 2>&1; then
+    /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 2>/dev/null &
+fi
+
+# ─────────────────────── Keyring ───────────────────────
+if command -v gnome-keyring-daemon >/dev/null 2>&1; then
+    eval $(/usr/bin/gnome-keyring-daemon --start --components=pkcs11,secrets,ssh,gpg)
+    export SSH_AUTH_SOCK
+fi
+
+# ─────────────────────── First-run welcome wizard ───────────────────────
+WELCOME_FLAG=~/.config/linkos/.welcome-done
+if [[ ! -f "$WELCOME_FLAG" ]] && [[ -x /usr/local/bin/linkos-welcome.sh ]]; then
+    /usr/local/bin/linkos-welcome.sh 2>/dev/null &
+    mkdir -p ~/.config/linkos
+    touch "$WELCOME_FLAG"
+fi
+
+# ─────────────────────── Auto-start Flatpak updates check ───────────────────────
+# (disabled by default — enable if you want)
+# (command -v flatpak >/dev/null 2>&1) && flatpak update --nointeraction &
+
+true
