@@ -206,87 +206,93 @@ jobs:
           }
           echo "::endgroup::"
 
-      # ────── 6.5. Install AUR helper (paru) + AUR-only packages ──────
+      # ────── 6.5. Build AUR-only packages (calamares, proton-ge-custom, ...) ──────
       # Some packages we need (calamares, proton-ge-custom, replay-sorcery,
       # ttf-meslo-nerd-font) are NOT in official repos or chaotic-aur.
-      # We must install them from AUR using an AUR helper, then PRE-STAGE
-      # them in /var/cache/pacman/pkg so that mkarchiso's `pacstrap` can
-      # install them inside the ISO's airootfs without an AUR helper.
+      # We must build them from AUR, then PRE-STAGE the built .pkg.tar.zst
+      # files in /repo/x86_64/ so mkarchiso's `pacstrap` can install them
+      # inside the ISO's airootfs without needing an AUR helper.
+      #
+      # We use plain `git clone + makepkg` instead of paru/yay because:
+      #   1. No AUR helper dependency (paru-bin is itself an AUR package
+      #      with libalpm version-pinning issues)
+      #   2. Faster (no extra makepkg for the helper itself)
+      #   3. Simpler — fewer moving parts
       - name: Build AUR-only packages (calamares, proton-ge-custom, ...)
         run: |
           set -euo pipefail
-          echo "::group::Install paru (AUR helper)"
-          # paru is itself an AUR package — install it the bootstrap way:
-          #   git clone → makepkg -si
-          # Requires: base-devel (already in packages.x86_64 but not yet
-          # installed in this container), git, sudo.
+          echo "::group::Install build prerequisites"
+          # base-devel: gcc, make, etc. (makepkg requirement)
+          # git: clone AUR repos
+          # sudo: needed for `makepkg -s` to install build deps as root
           pacman -S --noconfirm --needed base-devel git sudo
 
-          # Create the builder user for non-root makepkg
+          # Create the builder user (makepkg refuses to run as root)
           if ! id builder &>/dev/null; then
             useradd -m -G wheel -s /bin/bash builder
           fi
-
-          # Grant builder passwordless sudo (create the dir if missing)
           mkdir -p /etc/sudoers.d
           echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder
           chmod 0440 /etc/sudoers.d/builder
-
-          # Build + install paru-bin from AUR
-          cd /tmp
-          sudo -u builder git clone https://aur.archlinux.org/paru-bin.git
-          cd paru-bin
-          sudo -u builder makepkg -si --noconfirm --needed
           echo "::endgroup::"
 
-          echo "::group::Build AUR packages into pacman cache"
-          # Build each AUR-only package. The built .pkg.tar.zst files end up
-          # in /tmp/<pkg>/ — we copy them to /var/cache/pacman/pkg/ so
-          # mkarchiso's pacstrap can install them by name (via our local repo).
-          AUR_PACKAGES=(
-            calamares
-            calamares-core
-            calamares-default-settings
-            proton-ge-custom
-            replay-sorcery
-            ttf-meslo-nerd-font
-          )
+          echo "::group::Build AUR packages"
+          # Build each AUR-only package directly via git clone + makepkg.
+          # The built .pkg.tar.zst files are copied to /repo/x86_64/ for
+          # mkarchiso's pacstrap to find via the [linkos-local] repo.
           mkdir -p /repo/x86_64
-          for pkg in "${AUR_PACKAGES[@]}"; do
-            echo "── Building ${pkg} ──"
+
+          # Use associative array: AUR package name → AUR git URL
+          declare -A AUR_PKGS=(
+            [calamares]="https://aur.archlinux.org/calamares.git"
+            [calamares-core]="https://aur.archlinux.org/calamares-core.git"
+            [calamares-default-settings]="https://aur.archlinux.org/calamares-default-settings.git"
+            [proton-ge-custom]="https://aur.archlinux.org/proton-ge-custom.git"
+            [replay-sorcery]="https://aur.archlinux.org/replay-sorcery.git"
+            [ttf-meslo-nerd-font]="https://aur.archlinux.org/ttf-meslo-nerd-font.git"
+          )
+
+          for pkg in "${!AUR_PKGS[@]}"; do
+            url="${AUR_PKGS[$pkg]}"
+            echo "─── Building ${pkg} ───"
             cd /tmp
             rm -rf "${pkg}"
-            sudo -u builder paru -G "${pkg}" || {
-              echo "WARNING: paru -G ${pkg} failed — skipping."
+            if ! sudo -u builder git clone --depth=1 "${url}" "${pkg}"; then
+              echo "WARNING: git clone ${pkg} failed — skipping."
               continue
-            }
+            fi
             cd "${pkg}"
-            # --skipinteg skips PGP key checks (these are pre-validated AUR packages)
-            # -s installs missing build deps automatically
-            # --noconfirm prevents prompts
-            sudo -u builder makepkg -s --noconfirm --skipinteg || {
+            chown -R builder:builder .
+            # Build the package:
+            #   -s          : install missing build deps automatically via sudo
+            #   --noconfirm : don't prompt
+            #   --skipinteg : skip PGP/checksum checks (we trust AUR maintainers)
+            #   --nocheck   : skip test suite (faster; tests need a display sometimes)
+            if ! sudo -u builder makepkg -s --noconfirm --skipinteg --nocheck; then
               echo "WARNING: makepkg ${pkg} failed — skipping."
               continue
-            }
+            fi
             # Copy the built package(s) into the local repo
             cp -v *.pkg.tar.zst /repo/x86_64/ 2>/dev/null || true
           done
           echo "::endgroup::"
 
-          echo "::group::Register local repo in pacman.conf"
-          # Build the pacman database for the local repo
+          echo "::group::Create local pacman repo"
           cd /repo/x86_64
-          if compgen -G "*.pkg.tar.zst" > /dev/null; then
-            repo-add linkos-local.db.tar.zst *.pkg.tar.zst
-          else
+          if ! compgen -G "*.pkg.tar.zst" > /dev/null; then
             echo "ERROR: No AUR packages were built successfully."
             ls -la
             exit 1
           fi
+          # repo-add creates the pacman database (linkos-local.db.tar.zst)
+          repo-add linkos-local.db.tar.zst *.pkg.tar.zst
           ls -la
+          echo "::endgroup::"
 
-          # Insert [linkos-local] BEFORE [core] in pacman.conf so AUR-built
-          # packages take priority over official repo packages of the same name.
+          echo "::group::Patch container's pacman.conf with [linkos-local]"
+          # NOTE: The repo's pacman.conf (used by mkarchiso) ALREADY has
+          # [linkos-local] — we just need to add it to the container's
+          # /etc/pacman.conf so we can verify packages resolvable here.
           if ! grep -q '^\[linkos-local\]' /etc/pacman.conf; then
             awk '
               /^\[core\]/ && !done {
@@ -300,8 +306,8 @@ jobs:
             ' /etc/pacman.conf > /tmp/pacman.conf.new
             mv /tmp/pacman.conf.new /etc/pacman.conf
           fi
-          echo "=== pacman.conf (top 25 lines) ==="
-          head -25 /etc/pacman.conf
+          echo "=== Container's pacman.conf (top 30 lines) ==="
+          head -30 /etc/pacman.conf
           echo "::endgroup::"
 
           echo "::group::Verify AUR packages are resolvable"
