@@ -440,7 +440,6 @@ seahorse
 gnome-keyring
 libsecret
 keepassxc
-veracrypt
 wireguard-tools
 openvpn
 networkmanager-openvpn
@@ -464,22 +463,26 @@ ttf-ms-fonts
 
 ## ──────────────────────── AUR-only (built + staged by CI workflow) ─────────
 # These packages are NOT in pacman repos but are built from AUR by the
-# .github/workflows/build.yml workflow (using paru), then staged in a local
-# file:// repo at /repo/x86_64 so mkarchiso's pacstrap can install them.
+# .github/workflows/build.yml workflow (using git + makepkg), then staged in
+# a local file:// repo at /repo/x86_64 so mkarchiso's pacstrap can install them.
 calamares
-calamares-core
-calamares-default-settings
-proton-ge-custom
+proton-ge-custom-bin
 replay-sorcery
-ttf-meslo-nerd-font
+ttf-meslo-nerd-font-powerlevel10k
 
-## ──────────────────────── Calamares dependencies ─────────────────
+## ──────────────────────── Calamares runtime dependencies ─────────────────
+# These are RUNTIME deps of calamares (must be in the ISO so calamares can run).
+# Build-only deps (extra-cmake-modules, boost, etc.) are NOT here —
+# they were only needed during AUR build, not in the final ISO.
 ckbcomp
 gptfdisk
-qt5-tools
-qt6-tools
-extra-cmake-modules
 kpmcore
-boost
 yaml-cpp
 polkit-qt5
+python-yaml
+python-jsonschema
+qt5-base
+qt5-svg
+qt5-tools
+mkinitcpio-archiso
+squashfs-tools

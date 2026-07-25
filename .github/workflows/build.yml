@@ -243,13 +243,16 @@ jobs:
           mkdir -p /repo/x86_64
 
           # Use associative array: AUR package name → AUR git URL
+          # NOTE: Only `calamares`, `proton-ge-custom-bin`, `replay-sorcery`,
+          # and `ttf-meslo-nerd-font-powerlevel10k` exist in AUR.
+          # The names `calamares-core`, `calamares-default-settings`,
+          # `proton-ge-custom`, and `ttf-meslo-nerd-font` were wrong guesses
+          # that don't exist anywhere.
           declare -A AUR_PKGS=(
             [calamares]="https://aur.archlinux.org/calamares.git"
-            [calamares-core]="https://aur.archlinux.org/calamares-core.git"
-            [calamares-default-settings]="https://aur.archlinux.org/calamares-default-settings.git"
-            [proton-ge-custom]="https://aur.archlinux.org/proton-ge-custom.git"
+            [proton-ge-custom-bin]="https://aur.archlinux.org/proton-ge-custom-bin.git"
             [replay-sorcery]="https://aur.archlinux.org/replay-sorcery.git"
-            [ttf-meslo-nerd-font]="https://aur.archlinux.org/ttf-meslo-nerd-font.git"
+            [ttf-meslo-nerd-font-powerlevel10k]="https://aur.archlinux.org/ttf-meslo-nerd-font-powerlevel10k.git"
           )
 
           for pkg in "${!AUR_PKGS[@]}"; do
@@ -312,8 +315,8 @@ jobs:
 
           echo "::group::Verify AUR packages are resolvable"
           pacman -Sy
-          for pkg in calamares calamares-core calamares-default-settings \
-                     proton-ge-custom replay-sorcery ttf-meslo-nerd-font; do
+          for pkg in calamares proton-ge-custom-bin replay-sorcery \
+                     ttf-meslo-nerd-font-powerlevel10k; do
             if pacman -Si "${pkg}" >/dev/null 2>&1; then
               echo "✓ ${pkg} — resolvable"
             else
