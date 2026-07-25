@@ -124,8 +124,6 @@ pipewire-audio
 pipewire-v4l2
 pipewire-zeroconf
 wireplumber
-pulseaudio-bluetooth
-pulseaudio-alsa
 sof-firmware
 alsa-firmware
 alsa-utils
