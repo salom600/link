@@ -95,7 +95,7 @@ zsh
 
 ## ──────────────────────── Kernel/Firmware extras ────────────────
 linux-headers
-linux-firmware-broadcom    # was: linux-firmware-bnx2x (renamed in 2024)
+linux-firmware-broadcom
 sof-firmware
 
 ## ──────────────────────── Network / Wireless ───────────────────
@@ -246,13 +246,13 @@ xdo
 
 ## ──────────────────────── Themes & Icons ───────────────────────
 # Fluent GTK + icons come from chaotic-aur (pre-built AUR)
-fluent-gtk-theme            # chaotic-aur
-fluent-icon-theme           # chaotic-aur
+fluent-gtk-theme
+fluent-icon-theme
 papirus-icon-theme
 materia-gtk-theme
 kvantum
-kvantum-qt5                 # was: kvantum-vertex (AUR only)
-lxappearance                # was: lxappearance-gtk3 (renamed)
+kvantum-qt5
+lxappearance
 qt5ct
 qt6ct
 
@@ -276,7 +276,7 @@ freetype2
 fontconfig
 
 ## ──────────────────────── Apps: Web / Mail ─────────────────────
-brave-bin                   # chaotic-aur
+brave-bin
 firefox
 thunderbird
 
@@ -317,8 +317,8 @@ kdenlive
 handbrake
 simplescreenrecorder
 flameshot
-peazip                      # chaotic-aur
-foliate                     # chaotic-aur
+peazip
+foliate
 calibre
 
 ## ──────────────────────── Apps: Office / Text ──────────────────
@@ -371,8 +371,8 @@ xdg-user-dirs
 appstream
 appstream-qt
 appstream-glib
-flatseal                    # chaotic-aur
-bauh                        # chaotic-aur
+flatseal
+bauh
 
 ## ──────────────────────── Gaming Stack ─────────────────────────
 wine
@@ -400,12 +400,12 @@ gamescope
 mangohud
 lib32-mangohud
 goverlay
-protonup-qt                 # chaotic-aur
-protontricks                # chaotic-aur
-lutris                      # chaotic-aur
-heroic-games-launcher-bin   # chaotic-aur
-wine-staging                # chaotic-aur
-wineasio                    # chaotic-aur
+protonup-qt
+protontricks
+lutris
+heroic-games-launcher-bin
+wine-staging
+wineasio
 
 ## ──────────────────────── Live Environment Utilities ───────────
 archinstall
@@ -440,7 +440,7 @@ seahorse
 gnome-keyring
 libsecret
 keepassxc
-veracrypt                   # chaotic-aur
+veracrypt
 wireguard-tools
 openvpn
 networkmanager-openvpn
@@ -460,7 +460,7 @@ gvfs-mtp
 udisks2
 upower
 accountsservice
-ttf-ms-fonts                # chaotic-aur
+ttf-ms-fonts
 
 ## ──────────────────────── AUR-only (built + staged by CI workflow) ─────────
 # These packages are NOT in pacman repos but are built from AUR by the
