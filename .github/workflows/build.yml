@@ -449,7 +449,48 @@ jobs:
           path: iso-artifacts
 
       - name: Inspect artifact
-        run: ls -la iso-artifacts/
+        run: |
+          set -euo pipefail
+          ls -la iso-artifacts/
+          # GitHub Releases has a 2 GB per-asset limit. Our ISO is ~5 GB,
+          # so we split it into ≤ 1.9 GB chunks before uploading to Releases.
+          # The Actions artifact (above) keeps the full unsplit ISO.
+          cd iso-artifacts
+          ISO_FILE="$(ls *.iso | head -n1)"
+          ISO_SIZE="$(stat -c %s "${ISO_FILE}")"
+          echo "Original ISO size: $((ISO_SIZE / 1024 / 1024)) MB"
+          if (( ISO_SIZE > 1900000000 )); then
+            echo "ISO > 1.9 GB — splitting into chunks for GitHub Releases..."
+            # Split into 1900 MB chunks (just under the 2 GB limit)
+            split -b 1900M -d -a 2 "${ISO_FILE}" "${ISO_FILE}.part."
+            # Generate a SHA256 manifest so users can verify after reassembly
+            sha256sum "${ISO_FILE}" > "${ISO_FILE}.sha256"
+            # Write a README explaining how to reassemble (heredoc, no indent)
+            cat > README.txt <<EOF
+          LinkOS ISO - Reassembly Instructions
+          =====================================
+
+          The ISO was split into chunks because it exceeds GitHub's 2 GB
+          per-file release limit. To reassemble:
+
+          1. Download all .part.NN files + this README + the .sha256 file
+          2. Reassemble the ISO:
+             cat ${ISO_FILE}.part.* > ${ISO_FILE}
+          3. Verify integrity:
+             sha256sum -c ${ISO_FILE}.sha256
+          4. Flash to USB:
+             sudo dd if=${ISO_FILE} of=/dev/sdX bs=4M status=progress oflag=sync
+
+          Or use Rufus / BalenaEtcher on Windows.
+          EOF
+            # Remove the original ISO from the upload list (we'll only
+            # upload the chunks + manifest + README).
+            rm -f "${ISO_FILE}"
+            echo "=== Files to upload to Releases ==="
+            ls -la
+          else
+            echo "ISO ≤ 1.9 GB — no splitting needed."
+          fi
 
       # Determine release tag: use the pushed tag if present, otherwise
       # synthesize a rolling tag from the date+commit SHA.
