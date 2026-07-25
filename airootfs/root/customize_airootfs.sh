@@ -89,19 +89,22 @@ chown -R linkos:linkos /home/linkos
 # 4. Enable systemd services
 # ─────────────────────────────────────────────────────────────────────────────
 echo "Enabling systemd services..."
-systemctl enable NetworkManager.service
-systemctl enable lightdm.service
-systemctl enable bluetooth.service
-systemctl enable systemd-timesyncd.service
-systemctl enable systemd-resolved.service
-systemctl enable systemd-oomd.service
-systemctl enable reflector.timer
-systemctl enable paccache.timer
-systemctl enable firewalld.service 2>/dev/null || true
-systemctl enable cups.service 2>/dev/null || true
-systemctl enable tlp.service 2>/dev/null || true
-systemctl enable ufw.service 2>/dev/null || true
-systemctl enable auto-cpufreq.service 2>/dev/null || true
+# Use `|| true` for ALL service enables — if a service unit is missing (e.g.
+# because the package providing it was renamed/removed), the build should
+# continue, not fail. Critical services are listed first.
+systemctl enable NetworkManager.service       || true
+systemctl enable lightdm.service              || true
+systemctl enable bluetooth.service            || true
+systemctl enable systemd-timesyncd.service    || true
+systemctl enable systemd-resolved.service     || true
+systemctl enable systemd-oomd.service         || true
+systemctl enable reflector.timer              || true
+systemctl enable paccache.timer               || true
+systemctl enable firewalld.service            || true
+systemctl enable cups.service                 || true
+systemctl enable tlp.service                  || true
+systemctl enable ufw.service                  || true
+systemctl enable auto-cpufreq.service         || true
 
 # LightDM autologin for the live environment (no password prompt)
 mkdir -p /etc/lightdm/lightdm.conf.d

@@ -69,6 +69,7 @@ nano
 nvme-cli
 openssh
 openssl
+pacman-contrib
 pambase
 pciutils
 perl
