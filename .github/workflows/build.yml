@@ -334,6 +334,24 @@ jobs:
           chmod +x profiledef.sh
           # Clean prior output
           mkdir -p work out
+
+          # CRITICAL: Delete mkarchiso's "run_once" marker files from the
+          # cached work/ directory. mkarchiso uses these markers to skip
+          # already-completed steps. If we don't delete them, mkarchiso
+          # will validate options then exit immediately without rebuilding
+          # the ISO — leaving out/ empty.
+          #
+          # We keep the rest of work/ (rootfs, build_date, etc.) so that
+          # the expensive pacstrap step is still skipped on cache hits.
+          if [[ -d work ]]; then
+            echo "Removing mkarchiso run_once markers from cached work/..."
+            find work -maxdepth 1 -name 'iso.*' -delete 2>/dev/null || true
+            find work -maxdepth 1 -name 'build_mode.*' -delete 2>/dev/null || true
+            # Also remove any prior ISO in work/ (mkarchiso writes to out/, but
+            # be defensive in case older runs left artifacts)
+            find work -name '*.iso' -delete 2>/dev/null || true
+          fi
+
           # Show disk space + available CPUs (helps debug timeouts)
           echo "=== Disk space ==="
           df -h /
