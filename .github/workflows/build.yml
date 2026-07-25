@@ -129,25 +129,82 @@ jobs:
             pyalpm
 
       # ────── 6. Configure chaotic-aur mirror (pre-built AUR) ──────
-      # Adding the chaotic-aur key + mirror lets pacman install pre-built
-      # brave-bin, proton-ge-custom, etc. — saves 1-2h of AUR compilation.
+      # IMPORTANT: chaotic-keyring and chaotic-mirrorlist are themselves hosted
+      # in the chaotic-aur repo, so we can't `pacman -S` them — we have to
+      # fetch the raw files from chaotic.cx first, import the maintainer's
+      # GPG key, install the keyring manually, then enable the repo.
+      #
+      # The mirror exposes unversioned symlinks (chaotic-keyring.pkg.tar.zst,
+      # chaotic-mirrorlist.pkg.tar.zst) that always point to the latest build,
+      # so we don't have to track version numbers in this workflow.
       - name: Add chaotic-aur repository
         run: |
-          echo "::group::Install chaotic-aur keyring"
-          pacman -Sy --noconfirm --needed chaotic-keyring
+          set -euo pipefail
+          echo "::group::Fetch chaotic-aur keyring + mirrorlist"
+          # 1. Fetch the keyring + mirrorlist packages directly from chaotic.cx
+          #    using the unversioned symlinks (always point to latest).
+          mkdir -p /tmp/chaotic
+          cd /tmp/chaotic
+          for pkg in chaotic-keyring chaotic-mirrorlist; do
+            # Try the primary CDN first, fall back to the legacy URL
+            if ! curl -fL -o "${pkg}.pkg.tar.zst" \
+                "https://cdn-mirror.chaotic.cx/chaotic-aur/x86_64/${pkg}.pkg.tar.zst"; then
+              echo "Primary CDN failed for ${pkg}, trying fallback..."
+              curl -fL -o "${pkg}.pkg.tar.zst" \
+                "https://repo.chaotic.cx/x86_64/${pkg}.pkg.tar.zst"
+            fi
+            # Sanity check: file must be > 1KB (otherwise it's an error page)
+            [[ -s "${pkg}.pkg.tar.zst" ]] || {
+              echo "ERROR: ${pkg}.pkg.tar.zst is empty — mirror is broken."
+              exit 1
+            }
+            ls -la "${pkg}.pkg.tar.zst"
+          done
+          echo "::endgroup::"
+
+          echo "::group::Install chaotic-aur keyring + mirrorlist"
+          # 2. Install the local packages manually (use -U for local pkg files)
+          pacman -U --noconfirm --needed \
+            chaotic-keyring.pkg.tar.zst \
+            chaotic-mirrorlist.pkg.tar.zst
+          echo "::endgroup::"
+
+          echo "::group::Import + sign the chaotic GPG key"
+          # 3. Import the maintainer's GPG key (Chaotic-AUR team, ID 3056513887B78AEB)
+          #    and locally sign it so pacman trusts packages signed by it.
           pacman-key --recv-keys 3056513887B78AEB --keyserver keyserver.ubuntu.com
           pacman-key --lsign-key 3056513887B78AEB
           echo "::endgroup::"
 
-          # Append chaotic-aur to pacman.conf (idempotent)
+          echo "::group::Enable chaotic-aur + multilib in pacman.conf"
+          # 4. Enable multilib (commented out by default in archlinux:latest).
+          #    Use a stateful awk so the [multilib] header and its Include line
+          #    are both uncommented together.
+          awk '
+            /^#\[multilib\]/ { sub(/^#/, ""); in_multilib=1; print; next }
+            in_multilib && /^#Include = \/etc\/pacman\.d\/mirrorlist/ { sub(/^#/, ""); print; in_multilib=0; next }
+            { print }
+          ' /etc/pacman.conf > /tmp/pacman.conf.new
+          mv /tmp/pacman.conf.new /etc/pacman.conf
+
+          # 5. Append chaotic-aur repo entry (idempotent).
+          #    Use the Include directive so we get the chaotic mirrorlist's
+          #    ranked servers (more reliable than hard-coding a single CDN).
           if ! grep -q '^\[chaotic-aur\]' /etc/pacman.conf; then
-            printf '\n[chaotic-aur]\nSigLevel = Optional TrustedOnly\nServer = https://cdn-mirror.chaotic.cx/$repo/$arch\n' \
+            printf '\n[chaotic-aur]\nInclude = /etc/pacman.d/chaotic-mirrorlist\n' \
               >> /etc/pacman.conf
           fi
+          echo "::endgroup::"
 
-          # Also ensure multilib is enabled
-          sed -i 's/^#\(\[multilib\]\)/\1/' /etc/pacman.conf
-          sed -i 's/^#\(Include = \/etc\/pacman.d\/mirrorlist\)$/\1/' /etc/pacman.conf
+          echo "::group::Verify chaotic-aur is reachable"
+          # 6. Refresh databases + try resolving a known chaotic package
+          #    (brave-bin) to confirm the repo is working before we proceed.
+          pacman -Sy
+          pacman -Si brave-bin | head -5 || {
+            echo "ERROR: brave-bin not found in chaotic-aur — repo setup failed."
+            exit 1
+          }
+          echo "::endgroup::"
 
       # ────── 7. Patch profiledef for fast zstd compression ──────
       # mkarchiso's default iso_version uses current date — fine.

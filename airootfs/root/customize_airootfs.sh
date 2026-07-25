@@ -137,17 +137,19 @@ if [[ -f /etc/mkinitcpio.conf ]]; then
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 7. Activate chaotic-aur mirror inside the live env (so users can install
-#    AUR helpers' binaries without compiling)
+# 7. chaotic-aur is already configured in /etc/pacman.conf (see repo's
+#    pacman.conf). We just need to make sure the chaotic-mirrorlist file exists
+#    inside the live environment. mkarchiso copies the build container's
+#    /etc/pacman.d/chaotic-mirrorlist into the ISO's airootfs automatically
+#    (because the chaotic-mirrorlist package was installed via `pacman -U`
+#    earlier in the CI workflow). So there's nothing to do here.
+#
+#    NOTE: On the INSTALLED system (post-Calamares), the user will need to
+#    re-install the chaotic-keyring + chaotic-mirrorlist packages manually
+#    if they want to keep using chaotic-aur. This is documented in the
+#    linkos-welcome.sh wizard.
 # ─────────────────────────────────────────────────────────────────────────────
-if ! grep -q '^\[chaotic-aur\]' /etc/pacman.conf; then
-    cat >> /etc/pacman.conf <<'EOF'
-
-[chaotic-aur]
-SigLevel = Optional TrustedOnly
-Server = https://cdn-mirror.chaotic.cx/$repo/$arch
-EOF
-fi
+# (intentional no-op — kept as a placeholder for future customization)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 8. Flatpak — pre-add Flathub remote
