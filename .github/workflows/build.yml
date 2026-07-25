@@ -228,23 +228,37 @@ jobs:
       #  - -w work       : working directory (cached)
       #  - -o out        : output directory
       #  - -v            : verbose
-      #  -c zstd -X compression-level=15 : fast compression, decent ratio
-      #  We also export MAKEFLAGS for any in-tree compilation.
+      #  Compression (zstd -15, multi-threaded) is configured in profiledef.sh
+      #  via airootfs_image_tool_options — modern mkarchiso does NOT accept
+      #  -c / -X flags on the command line.
       - name: Build ISO with mkarchiso
         env:
           MAKEFLAGS: "-j$(nproc)"
+          # SOURCE_DATE_EPOCH must be a Unix epoch INTEGER (not an ISO timestamp).
+          # Use the commit time; fall back to "now" if missing.
           SOURCE_DATE_EPOCH: ${{ github.event.head_commit.timestamp && github.event.head_commit.timestamp || '' }}
         run: |
           set -euo pipefail
+          # Normalize SOURCE_DATE_EPOCH: GitHub gives us an ISO 8601 string;
+          # mkarchiso expects a Unix epoch integer.
+          if [[ -n "${SOURCE_DATE_EPOCH:-}" ]] && [[ "${SOURCE_DATE_EPOCH}" == *T* ]]; then
+            SOURCE_DATE_EPOCH="$(date -u -d "${SOURCE_DATE_EPOCH}" +%s)"
+            export SOURCE_DATE_EPOCH
+          elif [[ -z "${SOURCE_DATE_EPOCH:-}" ]]; then
+            SOURCE_DATE_EPOCH="$(date -u +%s)"
+            export SOURCE_DATE_EPOCH
+          fi
+          echo "Using SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}"
+          echo "  → $(date -u -d @${SOURCE_DATE_EPOCH} +%FT%TZ)"
+
           echo "::group::mkarchiso run"
-          # Remove cached work if profiledef or packages changed significantly
-          # (cache hit logic above already handles this, but be defensive)
           mkarchiso -v \
-                    -c zstd -X compression-level=15 \
                     -w work \
                     -o out \
                     ./
           echo "::endgroup::"
+          echo "=== Output directory contents ==="
+          ls -la out/
 
       # ────── 9. Package + checksum ──────
       - name: Generate checksums + capture metadata

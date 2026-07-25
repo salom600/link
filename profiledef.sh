@@ -29,11 +29,10 @@ iso_label="LINKOS_$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y%m)"
 # Installer
 install_dir="arch"
 
-# Boot modes:
-#   bios.syslinux.mbr      -> Legacy BIOS via ISOLINUX (MBR)
-#   bios.syslinux.eltorito -> Legacy BIOS via ISOLINUX (El Torito)
-#   uefi-x64.systemd-boot.esp -> UEFI via systemd-boot (ESP)
-#   uefi-x64.systemd-boot.eltorito -> UEFI via El Torito
+# Build mode (just ISO, no netboot/bootstrap)
+buildmodes=('iso')
+
+# Boot modes (BIOS + UEFI dual boot)
 bootmodes=(
     "bios.syslinux.mbr"
     "bios.syslinux.eltorito"
@@ -41,8 +40,21 @@ bootmodes=(
     "uefi-x64.systemd-boot.eltorito"
 )
 
-# Kernel/initramfs pairs to embed
-bootmodes_default=("uefi-x64.systemd-boot.esp")
+# ──────────────── Compression — ZSTD for fast squashfs ────────────────
+# Default Arch uses xz (slow, ~3-4h). We use zstd -15 -T0 for ~60% speedup.
+#   -comp zstd           : use zstd compressor
+#   -Xcompression-level 15: high ratio, still fast
+#   -b 1M                : 1MB block size (good balance)
+#   -Xbcj x86            : x86 BCJ filter (smaller code blocks)
+#   -T0                  : use all CPU cores (multi-threaded)
+airootfs_image_type="squashfs"
+airootfs_image_tool_options=(
+    '-comp' 'zstd'
+    '-Xcompression-level' '15'
+    '-b' '1M'
+    '-Xbcj' 'x86'
+    '-T0'
+)
 
 # pacman configuration to use
 pacman_conf="pacman.conf"
